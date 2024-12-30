@@ -6,5 +6,7 @@ using UnityEngine;
 public class TileData : ScriptableObject
 {
     public float speed;
+    public float offset;
+    public float rayOffset;
     public LayerMask targetLayer;
 }

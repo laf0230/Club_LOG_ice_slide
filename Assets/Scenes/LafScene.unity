@@ -3193,9 +3193,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1286017017}
+      - m_Target: {fileID: 144831403}
         m_TargetAssemblyTypeName: UI, Assembly-CSharp
-        m_MethodName: OnOpenButtonClick
+        m_MethodName: OnExitButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3861,7 +3861,7 @@ MonoBehaviour:
   sfxSounds:
   - name: MainButtonClick
     sound: {fileID: 8300000, guid: b2003393abbd05240a3fe39a2ce19669, type: 3}
-  - name: TileSlide
+  - name: TileMove
     sound: {fileID: 8300000, guid: e485ac949fd866549ae1045045943cea, type: 3}
   - name: TileCombine
     sound: {fileID: 8300000, guid: 2886cb301ffec774e9cfd27e12722f3b, type: 3}
@@ -4427,9 +4427,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 1362482327}
-        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
-        m_MethodName: CloseLevel
+      - m_Target: {fileID: 144831403}
+        m_TargetAssemblyTypeName: UI, Assembly-CSharp
+        m_MethodName: OnExitButtonClick
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -4439,9 +4439,9 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
-      - m_Target: {fileID: 144831403}
-        m_TargetAssemblyTypeName: UI, Assembly-CSharp
-        m_MethodName: OnExitButtonClick
+      - m_Target: {fileID: 1362482327}
+        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
+        m_MethodName: CloseLevel
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

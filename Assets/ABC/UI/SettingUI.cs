@@ -7,14 +7,6 @@ public class SettingUI : UI
 {
     public Button gameEndButton;
 
-    public override void Start()
-    {
-        base.Start();
-
-        gameEndButton.onClick.RemoveAllListeners();
-        gameEndButton.onClick.AddListener(OnGameEndButtonClick);
-    }
-
     private void OnGameEndButtonClick()
     {
 #if UNITY_EDITOR

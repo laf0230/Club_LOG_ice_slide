@@ -12,7 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1b5c52782e64e1341be0ea7cde6e938d, type: 3}
   m_Name: MoveableTile
   m_EditorClassIdentifier: 
-  speed: 5
+  speed: 100
+  offset: 0.1
+  rayOffset: 0.1
   targetLayer:
     serializedVersion: 2
     m_Bits: 64

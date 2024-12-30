@@ -7,10 +7,9 @@ using UnityEngine.Tilemaps;
 public class IceTile_ : MonoBehaviour
 {
     public TileData tileData;
-    public float offset = 0.5f; // 충돌체와의 거리 오프셋
-    public float rayOffset = 0.5f; // 충돌체와의 거리 오프셋
-    public bool isMoveing = false;
+    public bool isMoving = false;
     public string word;
+    public Vector3 targetPosition;
 
     private TextMeshProUGUI text;
     private Coroutine slideCoroutine; // 실행 중인 코루틴을 추적
@@ -25,7 +24,7 @@ public class IceTile_ : MonoBehaviour
 
     void Update()
     {
-        if (!isMoveing)
+        if (!isMoving)
         {
             if (Input.GetKeyDown(KeyCode.UpArrow)) StartSlideToPhysics(Vector2.up);
             if (Input.GetKeyDown(KeyCode.DownArrow)) StartSlideToPhysics(Vector2.down);
@@ -36,7 +35,9 @@ public class IceTile_ : MonoBehaviour
 
     void StartSlideToPhysics(Vector2 direction)
     {
-        isMoveing = true;
+        gameObject.SetActive(false);
+        gameObject.SetActive(true);
+        isMoving = true;
         // 충돌 체크
         if (CheckForCollision(transform.position, direction))
         {
@@ -45,6 +46,7 @@ public class IceTile_ : MonoBehaviour
         }
         else
         {
+            StopAllCoroutines();
             StartSlideCoroutine(direction);
         }
     }
@@ -52,7 +54,8 @@ public class IceTile_ : MonoBehaviour
     bool CheckForCollision(Vector3 position, Vector2 direction)
     {
         Ray2D ray = new Ray2D(position, direction);
-        RaycastHit2D[] hits = Physics2D.RaycastAll(ray.origin, ray.direction, offset, tileData.targetLayer);
+        Debug.DrawRay(position, direction * tileData.offset, Color.red);
+        RaycastHit2D[] hits = Physics2D.RaycastAll(ray.origin, ray.direction, tileData.rayOffset, tileData.targetLayer);
 
         // 충돌이 있는지 확인 (자기 자신 제외)
         return hits.Length > 1;
@@ -79,78 +82,122 @@ public class IceTile_ : MonoBehaviour
     IEnumerator SlidePhysics(Vector2 direction)
     {
         SoundManager.Instance.PlaySFXMusic("TileMove");
-        float stepDistance = 0.1f; // 이동 단위 거리
+        float speed = tileData.speed; // 이동 속도
 
+        // Rigidbody2D를 가져옵니다.
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+
+        if (rb == null)
+        {
+            Debug.LogError("Rigidbody2D component missing!");
+            yield break;
+        }
+
+        // Force를 적용할 방향 설정
+        Vector2 forceDirection = direction.normalized * speed;
+
+        // 충돌 여부를 반복적으로 체크
         while (true)
         {
-            Vector3 startPosition = transform.position;
-            Vector3 targetPosition = startPosition + (Vector3)direction * stepDistance;
-
-            // 목표 지점으로 부드럽게 이동
-            yield return SmoothMove(startPosition, targetPosition, tileData.speed, direction);
-
-            // 목표 지점에서 충돌 체크
-            transform.position = targetPosition;
-
-            if (CheckForCollision(transform.position, direction))
+            // 충돌 여부 확인 (이동을 하기 전 충돌 체크)
+            if (CheckForCollision(transform.position, forceDirection))
             {
+                // 충돌이 있으면 isMoving을 false로 설정하고 이동을 멈춤
                 Debug.Log("Collision detected, stopping movement");
-                isMoveing = false;
+
+                // velocity를 0으로 설정하여 물리적 이동을 멈춤
+                rb.velocity = Vector2.zero;
+
                 break; // 충돌 시 이동 중단
+            }
+
+            // 이동을 위한 AddForce 적용
+            rb.AddForce(forceDirection, ForceMode2D.Force);
+
+            // 일정 시간 후 멈추도록 조절 (타일 크기만큼 이동하는 것에 맞추어 설정)
+            yield return new WaitForSeconds(0.1f); // 필요에 따라 조정 가능
+
+            // 이동 후 충돌 발생 시 중단
+            if (CheckForCollision(transform.position, forceDirection))
+            {
+                Debug.Log("Collision detected during movement");
+
+                // velocity를 0으로 설정하여 물리적 이동을 멈춤
+                rb.velocity = Vector2.zero;
+
+                yield break; // 이동을 멈추고 코루틴 종료
             }
         }
 
         slideCoroutine = null; // 코루틴 종료 시 초기화
     }
 
-    IEnumerator SmoothMove(Vector3 start, Vector3 end, float speed, Vector2 direction)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        float elapsedTime = 0f;
-        float travelTime = Vector3.Distance(start, end) / speed;
-
-        while (elapsedTime < travelTime)
+        if (collision.collider.CompareTag("MovableBlock"))
         {
-            if (CheckForCollision(transform.position, direction)) break;
+            IceTile_ targetTile = collision.collider.GetComponent<IceTile_>();
+            if (targetTile != null)
+            {
+                string targetWord = targetTile.word;
 
-            elapsedTime += Time.deltaTime;
-            transform.position = Vector3.Lerp(start, end, elapsedTime / travelTime);
+                // 조합 시도
+                string combinedWord = CombineHangul(word, targetWord);
+                if (!string.IsNullOrEmpty(combinedWord))
+                {
+                    SoundManager.Instance.PlaySFXMusic("TileCombine");
+
+                    levelManager.OnBlockCrushed(this, combinedWord);
+
+                    // 조합 성공 시 현재 타일의 word 갱신
+                    word = combinedWord;
+                    text.text = word;
+
+                    // 조합된 타일 제거
+                    Destroy(targetTile.gameObject);
+
+                    // 타겟 위치로 이동
+                    targetPosition = targetTile.transform.position;
+                    StartCoroutine(MoveToTargetPosition());
+                }
+                else
+                {
+                    Debug.Log("조합 불가능: " + word + " + " + targetWord);
+                }
+
+        isMoving = false;
+            }
+        }
+        else if (collision.collider.CompareTag("OnField"))
+        {
+            isMoving = false;
+        }
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        StopAllCoroutines();
+    }
+
+    public void OnCollisionExit2D(Collision2D collision)
+    {
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        rb.velocity = Vector3.zero;
+    }
+
+    // 타겟 위치로 이동하는 코루틴
+    IEnumerator MoveToTargetPosition()
+    {
+        float moveSpeed = 5f; // 이동 속도
+        float step = moveSpeed * Time.deltaTime; // 프레임마다 이동할 거리
+
+        while (Vector3.Distance(transform.position, targetPosition) > 0.1f)
+        {
+            // 타겟 위치로 이동
+            transform.position = Vector3.MoveTowards(transform.position, targetPosition, step);
             yield return null;
         }
 
-        transform.position = end; // 이동 완료 후 정확히 목표 지점에 위치
+        // 정확한 위치에 도달하면 종료
+        transform.position = targetPosition;
     }
-
-private void OnCollisionEnter2D(Collision2D collision)
-{
-    if (collision.collider.CompareTag("MovableBlock"))
-    {
-        IceTile_ targetTile = collision.collider.GetComponent<IceTile_>();
-        if (targetTile != null)
-        {
-            string targetWord = targetTile.word;
-
-            // 조합 시도
-            string combinedWord = CombineHangul(word, targetWord);
-            if (!string.IsNullOrEmpty(combinedWord))
-            {
-                    SoundManager.Instance.PlaySFXMusic("TileCombine");
-
-                levelManager.OnBlockCrushed(this, combinedWord);
-
-                // 조합 성공 시 현재 타일의 word 갱신
-                word = combinedWord;
-                text.text = word;
-
-                // 조합된 타일 제거
-                Destroy(targetTile.gameObject);
-            }
-            else
-            {
-                Debug.Log("조합 불가능: " + word + " + " + targetWord);
-            }
-        }
-    }
-}
 
     private string CombineHangul(string baseWord, string targetWord)
     {
