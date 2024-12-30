@@ -23,4 +23,16 @@ public class SettingUI : UI
         Application.Quit(); // 어플리케이션 종료
 #endif
     }
+
+    public void ToggleUI()
+    {
+        if (gameObject.activeSelf)
+        {
+            OnExitButtonClick();
+        }
+        else
+        {
+            OnOpenButtonClick();
+        }
+    }
 }

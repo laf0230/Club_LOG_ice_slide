@@ -8,7 +8,9 @@ public enum UIType
     main,
     level,
     setting,
-    gamePlay
+    gamePlay,
+    clear,
+    onPlay
 }
 
 public class UIManager : MonoBehaviour
@@ -35,6 +37,7 @@ public class UIManager : MonoBehaviour
 
     public UI GetUI(Type type)
     {
+        Debug.Log(type.ToString());
         foreach (var item in uis)
         {
             if(item.GetType() == type)

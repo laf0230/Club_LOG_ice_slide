@@ -8,12 +8,17 @@ public class IceTile_ : MonoBehaviour
 {
     public TileData tileData;
     public float offset = 0.5f; // 충돌체와의 거리 오프셋
+    public float rayOffset = 0.5f; // 충돌체와의 거리 오프셋
     public bool isMoveing = false;
     public string word;
+
     private TextMeshProUGUI text;
+    private Coroutine slideCoroutine; // 실행 중인 코루틴을 추적
+    private LevelManager levelManager;
 
     private void Start()
     {
+        levelManager = GetComponentInParent<LevelManager>();
         text = GetComponentInChildren<TextMeshProUGUI>();
         text.text = word;
     }
@@ -22,51 +27,97 @@ public class IceTile_ : MonoBehaviour
     {
         if (!isMoveing)
         {
-            if (Input.GetKeyDown(KeyCode.UpArrow)) StartSlide(Vector2.up);
-            if (Input.GetKeyDown(KeyCode.DownArrow)) StartSlide(Vector2.down);
-            if (Input.GetKeyDown(KeyCode.LeftArrow)) StartSlide(Vector2.left);
-            if (Input.GetKeyDown(KeyCode.RightArrow)) StartSlide(Vector2.right);
+            if (Input.GetKeyDown(KeyCode.UpArrow)) StartSlideToPhysics(Vector2.up);
+            if (Input.GetKeyDown(KeyCode.DownArrow)) StartSlideToPhysics(Vector2.down);
+            if (Input.GetKeyDown(KeyCode.LeftArrow)) StartSlideToPhysics(Vector2.left);
+            if (Input.GetKeyDown(KeyCode.RightArrow)) StartSlideToPhysics(Vector2.right);
         }
     }
 
-    void StartSlide(Vector2 direction)
+    void StartSlideToPhysics(Vector2 direction)
     {
         isMoveing = true;
-        // Ray 시작 위치 및 방향 설정
-        Ray2D ray = new Ray2D(transform.position, direction);
-        RaycastHit2D[] hits = Physics2D.RaycastAll(ray.origin, ray.direction, Mathf.Infinity, tileData.targetLayer);
-
-        if (hits.Length > 1) // 자기 자신의 콜라이더를 제외한 충돌 확인
+        // 충돌 체크
+        if (CheckForCollision(transform.position, direction))
         {
-            Vector2 hitPoint = hits[1].point;
-            Vector2 adjustedPoint = hitPoint - (direction * offset);
-
-            StartCoroutine(Move(adjustedPoint));
-            Debug.DrawLine(transform.position, hitPoint, Color.red, 1f);
+            Debug.Log("Movement stopped due to collision");
+            StopSlideCoroutine();
         }
         else
         {
-            Debug.Log("Ray did not hit any object.");
+            StartSlideCoroutine(direction);
         }
     }
 
-    IEnumerator Move(Vector2 targetPosition)
+    bool CheckForCollision(Vector3 position, Vector2 direction)
     {
-        Vector3 startPosition = transform.position; // 시작 위치 설정
-        float distance = Vector3.Distance(startPosition, targetPosition); // 시작 위치와 목표 위치 간 거리 계산
-        float duration = distance / tileData.speed; // 이동 거리 기반으로 지속 시간 계산
+        Ray2D ray = new Ray2D(position, direction);
+        RaycastHit2D[] hits = Physics2D.RaycastAll(ray.origin, ray.direction, offset, tileData.targetLayer);
 
-        float elapsedTime = 0f; // 경과 시간 초기화
+        // 충돌이 있는지 확인 (자기 자신 제외)
+        return hits.Length > 1;
+    }
 
-        while (elapsedTime < duration)
+    void StartSlideCoroutine(Vector2 direction)
+    {
+        // 기존 코루틴이 있으면 중지
+        StopSlideCoroutine();
+
+        // 새 슬라이드 코루틴 시작
+        slideCoroutine = StartCoroutine(SlidePhysics(direction));
+    }
+
+    void StopSlideCoroutine()
+    {
+        if (slideCoroutine != null)
         {
-            transform.position = Vector3.Lerp(startPosition, targetPosition, elapsedTime / duration);
-            elapsedTime += Time.deltaTime; // 시간 누적
-            yield return null; // 다음 프레임까지 대기
+            StopCoroutine(slideCoroutine);
+            slideCoroutine = null;
+        }
+    }
+
+    IEnumerator SlidePhysics(Vector2 direction)
+    {
+        SoundManager.Instance.PlaySFXMusic("TileMove");
+        float stepDistance = 0.1f; // 이동 단위 거리
+
+        while (true)
+        {
+            Vector3 startPosition = transform.position;
+            Vector3 targetPosition = startPosition + (Vector3)direction * stepDistance;
+
+            // 목표 지점으로 부드럽게 이동
+            yield return SmoothMove(startPosition, targetPosition, tileData.speed, direction);
+
+            // 목표 지점에서 충돌 체크
+            transform.position = targetPosition;
+
+            if (CheckForCollision(transform.position, direction))
+            {
+                Debug.Log("Collision detected, stopping movement");
+                isMoveing = false;
+                break; // 충돌 시 이동 중단
+            }
         }
 
-        isMoveing = false;
-        transform.position = targetPosition; // 최종 위치 보정
+        slideCoroutine = null; // 코루틴 종료 시 초기화
+    }
+
+    IEnumerator SmoothMove(Vector3 start, Vector3 end, float speed, Vector2 direction)
+    {
+        float elapsedTime = 0f;
+        float travelTime = Vector3.Distance(start, end) / speed;
+
+        while (elapsedTime < travelTime)
+        {
+            if (CheckForCollision(transform.position, direction)) break;
+
+            elapsedTime += Time.deltaTime;
+            transform.position = Vector3.Lerp(start, end, elapsedTime / travelTime);
+            yield return null;
+        }
+
+        transform.position = end; // 이동 완료 후 정확히 목표 지점에 위치
     }
 
 private void OnCollisionEnter2D(Collision2D collision)
@@ -82,6 +133,10 @@ private void OnCollisionEnter2D(Collision2D collision)
             string combinedWord = CombineHangul(word, targetWord);
             if (!string.IsNullOrEmpty(combinedWord))
             {
+                    SoundManager.Instance.PlaySFXMusic("TileCombine");
+
+                levelManager.OnBlockCrushed(this, combinedWord);
+
                 // 조합 성공 시 현재 타일의 word 갱신
                 word = combinedWord;
                 text.text = word;
@@ -111,8 +166,8 @@ private void OnCollisionEnter2D(Collision2D collision)
 
         // 초성/중성/종성 테이블
         string choTable = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ";
-        string jungTable = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅛㅜㅠㅡㅣㅘㅙㅚㅝㅞㅟㅢ";
-        string jongTable = "ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ";
+        string jungTable = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅛㅜㅠㅡㅣ";
+        string jongTable = "ㄱㅅㅇㅈㅊㅋㅌㅍㅎ";
 
         // 현재 문자가 초성인지, 중성인지 확인
         if (choTable.Contains(baseChar) && jungTable.Contains(targetChar))

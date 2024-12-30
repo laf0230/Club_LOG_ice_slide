@@ -13,15 +13,24 @@ public class LevelUI : UI
     {
         base.Start();
 
-        for (int i = 0; i < GameManager.instance.gameCount; i++)
+        // Ensure the levelElementPrefab and levelElementContainer are assigned
+        if (levelElementPrefab == null)
         {
-            levelElements.Add(Instantiate(levelElementPrefab, levelElementContainer));
-            levelElements[i].SetNumber(i);
+            Debug.LogError("Level Element Prefab is not assigned.");
+            return;
         }
-    }
+        if (levelElementContainer == null)
+        {
+            Debug.LogError("Level Element Container is not assigned.");
+            return;
+        }
 
-    public override void AddOpenButton(Button button)
-    {
-        base.AddExitButton(button);
+        for (int i = 0; i < GameManager.instance.levels.Length; i++)
+        {
+            // Instantiate the level element and add it to the list
+            LevelElementUI newLevelElement = Instantiate(levelElementPrefab, levelElementContainer);
+            newLevelElement.SetNumber(i + 1); // Set the number (starting from 1)
+            levelElements.Add(newLevelElement);
+        }
     }
 }

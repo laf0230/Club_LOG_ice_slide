@@ -7,22 +7,36 @@ using UnityEngine.UI;
 public class LevelElementUI : MonoBehaviour
 {
     private Button button;
-    public TextMeshProUGUI textMeshPro { get; private set; }
+    public TextMeshProUGUI textMeshPro;
+    public int levelNumber;
 
-    private void OnEnable()
+    public void Start()
     {
         button = GetComponent<Button>();
-        textMeshPro = transform.GetComponentInChildren<TextMeshProUGUI>();
-        button.onClick.AddListener(OpenGamePlay);
+        UIManager.instance.GetUI(typeof(LevelUI)).AddExitButton(button);
+        // levelNumber가 1 이상일 때만 OpenLevel 호출
+        OnButtonClick();
     }
 
-    public void OpenGamePlay()
+    public void OnButtonClick()
     {
-        UIManager.instance.GetUI(typeof(GameEntityUI)).AddOpenButton(button);
+        button.onClick.AddListener(() =>
+        {
+            if (levelNumber >= 1)
+            {
+                GameManager.instance.OpenLevel(levelNumber);
+                UIManager.instance.GetUI(typeof(OnPlayUI)).OnOpenButtonClick();
+            }
+            else
+            {
+                Debug.LogError("레벨 번호가 유효하지 않습니다.");
+            }
+        });
     }
 
     public void SetNumber(int number)
     {
-        textMeshPro.text = number.ToString();
+        levelNumber = number;
+        textMeshPro.text = number.ToString(); // Update the level number text
     }
 }

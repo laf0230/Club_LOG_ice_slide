@@ -18,6 +18,7 @@ public class UI : MonoBehaviour
 
     public void InitializeButtonOpenExit()
     {
+        // 버튼 기능 초기화
         foreach (var button in exitButton)
         {
             button.onClick.RemoveAllListeners();
@@ -33,24 +34,26 @@ public class UI : MonoBehaviour
 
     public virtual void OnExitButtonClick()
     {
+        // 닫기 버튼 클릭 이벤트
         this.gameObject.SetActive(false);
     }
 
     public virtual void OnOpenButtonClick()
     {
+        // 열기 버튼 클릭 이벤트
         this.gameObject.SetActive(true);
     }
 
     public virtual void AddOpenButton(Button button)
     {
+        // 여는 버튼 추가
         openButton.Add(button);
-        InitializeButtonOpenExit();
     }
 
     public virtual void AddExitButton(Button button)
     {
+        // 닫는 버튼 추가
         exitButton.Add(button);
-        InitializeButtonOpenExit();
     }
 
     #endregion
